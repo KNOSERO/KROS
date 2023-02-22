@@ -2,7 +2,7 @@ name: Deploy to Vagrant Cloud
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 
 env:
   VAGRANT_CLOUD_TOKEN: ${{ secrets.VAGRANT_CLOUD_TOKEN }}
