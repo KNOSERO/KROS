@@ -2,7 +2,8 @@ name: Deploy to Vagrant Cloud
 
 on:
   push:
-    branches: [ main ]
+    tags:
+      - '*'
 
 env:
   VAGRANT_CLOUD_TOKEN: ${{ secrets.VAGRANT_CLOUD_TOKEN }}
@@ -19,6 +20,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y vagrant
+          
+      - name: Get version from tag
+        id: version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
 
       - name: Authenticate to Vagrant Cloud
         run: |
@@ -27,5 +32,5 @@ jobs:
       - name: Build and upload box
         run: |
           vagrant up
-          vagrant package --output my-box.box
-          vagrant cloud publish --release <username>/my-box 1.0 virtualbox my-box.box
+          vagrant package --output kros.box
+          vagrant cloud publish --release knosero/kros ${{ steps.version.outputs.VERSION }} virtualbox kros.box
