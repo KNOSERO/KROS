@@ -1,0 +1,31 @@
+name: Deploy to Vagrant Cloud
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  VAGRANT_CLOUD_TOKEN: ${{ secrets.VAGRANT_CLOUD_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Vagrant
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y vagrant
+
+      - name: Authenticate to Vagrant Cloud
+        run: |
+          vagrant cloud auth login --token $VAGRANT_CLOUD_TOKEN
+
+      - name: Build and upload box
+        run: |
+          vagrant up
+          vagrant package --output my-box.box
+          vagrant cloud publish --release <username>/my-box 1.0 virtualbox my-box.box
