@@ -1,0 +1,20 @@
+virtualMachine:
+  box:
+    name: "ubuntu/jammy64"
+    version: "20230218.0.0"
+  host:
+    name: "kros"
+    ip: "127.0.0.1"
+  machine:
+    name: "kros"
+    memory: "8192"
+    cpus: "4"
+  install:
+    java: "adoptopenjdk-11-openj9"
+    gradle: "7.6"
+    node: "18.x"
+    npm: "xxx"
+    yarn: "xxx"
+    docker:
+      treafic: "traefik:v2.9"
+      postgres: "postgres:latest"
