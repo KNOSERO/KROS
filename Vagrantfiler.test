@@ -1,0 +1,164 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+#=========================
+#
+#       Config
+#
+#=========================
+
+Vagrant.require_version ">= 1.6.0"
+VAGRANTFILE_API_VERSION = "2"
+
+ROOTPATH = File.dirname(__FILE__)
+
+require 'yaml'
+require "#{ROOTPATH}/dependency.rb"
+
+CONFIG_FILE = YAML.load_file("#{ROOTPATH}/config.yml")
+
+VIRTUAL_MACHINE = CONFIG_FILE["virtualMachine"]
+
+#=========================
+#       Box
+#=========================
+
+BOX = VIRTUAL_MACHINE["box"]
+BOX["name"] = ENV['BOX_NAME'] || BOX["name"]
+
+#=========================
+#       Host
+#=========================
+
+HOST = VIRTUAL_MACHINE["host"]
+HOST["name"] = ENV['HOST_NAME'] || HOST["name"]
+HOST["ip"] = ENV['HOST_IP'] || HOST["ip"]
+
+#=========================
+#       Network
+#=========================
+
+MACHINE = VIRTUAL_MACHINE["machine"]
+MACHINE["name"] = ENV['NAME_MACHINE'] || MACHINE["name"]
+
+#=========================
+#       Plugin
+#=========================
+
+check_plugins ['vagrant-bindfs', 'vagrant-rsync-back']
+if OS.is_windows
+  check_plugins ['vagrant-winnfsd']
+end
+
+#=========================
+#
+#       Process
+#
+#=========================
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  config.vm.box = BOX["name"]
+  config.vm.version = BOX["version"]
+
+  config.vm.define HOST["name"]
+  config.vm.hostname = HOST["name"]
+  config.vm.network 'private_network', ip: HOST["ip"]
+
+  #=========================
+  #       Provider
+  #=========================
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = MACHINE["name"]
+    vb.memory = MACHINE["memory"]
+    vb.cpus = MACHINE["cpus"]
+
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+
+    vb.customize ["modifyvm", :id, "--ioapic", "no"]
+    vb.customize ['setextradata', :id, 'VBoxInternal2/SharedFoldersEnableSymlinksCreate/var/www/', '1']
+
+    vb.customize ["modifyvm", :id, "--uart1", "0x3F8", "4"]
+    vb.customize ["modifyvm", :id, "--uartmode1", "file", File::NULL]
+  end
+
+  config.vm.synced_folder ".", "/vagrant", disabled:true
+
+  config.bindfs.default_options = {
+    force_group: 'www-data',
+  }
+
+  if MACHINE['mount'] == 'nfs'
+    if OS.is_windows
+      config.winnfsd.uid = 1
+      config.winnfsd.gid = 1
+    end
+    if OS.is_linux
+      config.vm.synced_folder hostDirectory,
+                              guestDirectory,
+                              create: true,
+                              :nfs => true,
+                              linux__nfs_options: ['rw','no_subtree_check','all_squash','async'],
+                              nfs_version: 4,
+                              nfs_udp: false
+    else
+      config.vm.synced_folder hostDirectory,
+                              guestDirectory,
+                              create: true,
+                              :nfs => true
+    end
+
+    config.nfs.map_uid = Process.uid
+    config.nfs.map_gid = Process.gid
+  end
+
+  if MACHINE['mount'] == 'rsync'
+    config.vm.synced_folder hostDirectory,
+                            guestDirectory,
+                            create: true,
+                            type: 'rsync',
+                            rsync__args: ['--archive', '-z', '--copy-links'],
+                            rsync__exclude: rsync_exclude
+  end
+
+  if MACHINE['mount'] != 'rsync' && MACHINE['mount'] != 'nfs'
+    MACHINE['mount'] = 'default'
+    config.vm.synced_folder hostDirectory,
+                            guestDirectory,
+                            create: true
+  end
+
+  config.bindfs.bind_folder hostDirectory,
+                            guestDirectory,
+                            after: :provision
+
+  config.vm.provision 'file', source: '~/.ssh/id_rsa', destination: '~/.ssh/id_rsa'
+  config.vm.provision 'file', source: '~/.ssh/id_rsa.pub', destination: '~/.ssh/id_rsa.pub'
+
+  #=========================
+  #       INSTALL
+  #=========================
+
+
+
+  #=========================
+  #       Docker
+  #=========================
+
+  config.ssh.forward_agent = true
+
+  # Post up message
+  config.vm.post_up_message =
+    "
+      ---------------------------------------------------------
+      Vagrant machine ready to use for #{git['name']}
+         mount           #{MACHINE['mount']}
+         path            #{guestDirectory}
+
+    "
+
+  # Triggers
+  triggers(config, vmconf['mount'], vmconf['host_name'], hostDirectory)
+end
