@@ -20,6 +20,20 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y vagrant
+      
+      - name: Install Libvirt and KVM
+        run: |
+          sudo apt-get install -y libvirt-daemon-system libvirt-clients qemu-kvm
+
+      - name: Configure Libvirt
+        run: |
+          sudo systemctl enable libvirtd
+          sudo systemctl start libvirtd
+          sudo usermod -aG libvirt $(whoami)
+
+      - name: Install Vagrant Libvirt plugin
+        run: |
+          vagrant plugin install vagrant-libvirt
           
       - name: Get version from tag
         id: version
