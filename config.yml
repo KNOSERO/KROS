@@ -4,11 +4,11 @@ virtualMachine:
     version: "20230218.0.0"
   host:
     name: "kros"
-    ip: "127.0.0.1"
+    ip: "10.10.10.10"
   machine:
     name: "kros"
-    memory: "8192"
-    cpus: "4"
+    memory: 2048
+    cpus: 2
   install:
     java: "adoptopenjdk-11-openj9"
     gradle: "7.6"
