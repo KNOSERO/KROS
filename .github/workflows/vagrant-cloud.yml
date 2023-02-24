@@ -24,13 +24,16 @@ jobs:
       - name: Get version from tag
         id: version
         run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+        working-directory: ./
 
       - name: Authenticate to Vagrant Cloud
         run: |
           vagrant cloud auth login --token $VAGRANT_CLOUD_TOKEN
+        working-directory: ./
 
       - name: Build and upload box
         run: |
           vagrant up
           vagrant package --output kros.box
           vagrant cloud publish --release knosero/kros ${{ steps.version.outputs.VERSION }} virtualbox kros.box
+        working-directory: ./
